@@ -11,12 +11,17 @@ import {
   CheckInListView,
   CheckInTiles,
 } from '~components/checkIn';
+import { Routes, Stacks } from '~navigation/constants';
 
 // redux actions
 import { getLanguages } from '~store/globals.slice';
 import { updateUser, updateFCMToken } from '~store/user.slice';
 import { deleteQuestionnaire } from '~store/questionnaire.slice';
-import { sendQuestionnaireResponse, sendReport } from '~store/sharedActions';
+import {
+  sendQuestionnaireResponse,
+  sendReport,
+  reset,
+} from '~store/sharedActions';
 
 // services & config
 import translate from '~services/localization';
@@ -64,8 +69,10 @@ function CheckInScreen({ navigation }) {
         dispatch(updateFCMToken(subjectId));
       }
       dispatch(getLanguages());
+    } else {
+      navigation.navigate(Stacks.SIGNED_OUT, { screen: Routes.LANDING });
     }
-  }, [dispatch, subjectId]);
+  }, [dispatch, subjectId, navigation]);
 
   // check if the currently persisted questionnaire is outdated
   // if so, alert user and delete data
@@ -180,6 +187,30 @@ function CheckInScreen({ navigation }) {
     }
   };
 
+  /**
+   * shows a confirmation-dialog. if confirmed, it deletes the local data, logs the user
+   * out and navigates back to the landing-screen.
+   */
+  const clearAll = () => {
+    Alert.alert(
+      translate('generic').warning,
+      translate('generic').eraseAllWarning,
+      [
+        {
+          text: translate('generic').delete,
+          onPress: () => {
+            dispatch(reset());
+          },
+        },
+        {
+          text: translate('generic').abort,
+          style: 'cancel',
+        },
+      ],
+      { cancelable: false },
+    );
+  };
+
   return loading ? (
     <Spinner />
   ) : (
@@ -197,46 +228,42 @@ function CheckInScreen({ navigation }) {
 
       {/*  center content */}
       {subjectId && (
-        <View style={[localStyle.flexi, localStyle.wrapper]}>
-          <ScrollIndicatorWrapper>
-            <View style={localStyle.wrapper}>
-              {/* renders the listview item representing the questionnaire */}
-              {!noNewQuestionnaireAvailableYet && status !== 'off-study' && (
-                <CheckInListView
-                  firstTime={firstTime}
-                  navigation={navigation}
-                  dueDate={due_date}
-                  done={done}
-                  started={started}
-                />
-              )}
-              {/* welcome text with due-date information */}
-              <CheckInWelcomeText
-                error={error}
-                status={status}
-                noNewQuestionnaireAvailableYet={noNewQuestionnaireAvailableYet}
+        <ScrollIndicatorWrapper>
+          <View style={[localStyle.wrapper, localStyle.content]}>
+            {/* renders the listview item representing the questionnaire */}
+            {!noNewQuestionnaireAvailableYet && status !== 'off-study' && (
+              <CheckInListView
                 firstTime={firstTime}
+                navigation={navigation}
                 dueDate={due_date}
-                startDate={start_date}
-                categoriesLoaded={categoriesLoaded}
-              />
-              {/* renders the button at the bottom */}
-
-              <CheckInTiles
                 done={done}
-                status={status}
-                iterationsLeft={additional_iterations_left}
-                categoriesLoaded={categoriesLoaded}
-                noNewQuestionnaireAvailableYet={noNewQuestionnaireAvailableYet}
-                sendReport={handleReport}
-                deleteLocalDataAndLogout={() => {
-                  /* TODO */
-                }}
-                exportAndUploadQuestionnaireResponse={handleSubmit}
+                started={started}
               />
-            </View>
-          </ScrollIndicatorWrapper>
-        </View>
+            )}
+            {/* welcome text with due-date information */}
+            <CheckInWelcomeText
+              error={error}
+              status={status}
+              noNewQuestionnaireAvailableYet={noNewQuestionnaireAvailableYet}
+              firstTime={firstTime}
+              dueDate={due_date}
+              startDate={start_date}
+              categoriesLoaded={categoriesLoaded}
+            />
+            {/* renders the button at the bottom */}
+
+            <CheckInTiles
+              done={done}
+              status={status}
+              iterationsLeft={additional_iterations_left}
+              categoriesLoaded={categoriesLoaded}
+              noNewQuestionnaireAvailableYet={noNewQuestionnaireAvailableYet}
+              sendReport={handleReport}
+              deleteLocalDataAndLogout={clearAll}
+              exportAndUploadQuestionnaireResponse={handleSubmit}
+            />
+          </View>
+        </ScrollIndicatorWrapper>
       )}
     </View>
   );
@@ -256,10 +283,7 @@ const localStyle = StyleSheet.create({
     flexDirection: 'column',
     backgroundColor: theme.values.defaultBackgroundColor,
   },
-
-  flexi: {
-    flex: 1,
-  },
+  content: { justifyContent: 'space-evenly' },
 });
 
 export default CheckInScreen;
